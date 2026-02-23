@@ -95,6 +95,59 @@ defmodule EXGBoostTest do
     assert inplace_preds_no_proxy.shape == y.shape
   end
 
+  test "predict is stable across repeated calls", context do
+    nrows = 12
+    ncols = 5
+    {x, new_key} = Nx.Random.normal(context.key, 0, 1, shape: {nrows, ncols})
+    {y, _new_key} = Nx.Random.normal(new_key, 0, 1, shape: {nrows})
+
+    booster =
+      EXGBoost.train(x, y,
+        num_boost_rounds: 25,
+        tree_method: :hist,
+        eval_metric: :rmse
+      )
+
+    first_preds = EXGBoost.predict(booster, x)
+    second_preds = EXGBoost.predict(booster, x)
+    third_preds = EXGBoost.predict(booster, x)
+
+    assert Nx.all_close(first_preds, second_preds)
+    assert Nx.all_close(first_preds, third_preds)
+    assert Nx.all_close(second_preds, third_preds)
+  end
+
+  test "predict first call matches subsequent confidence values", context do
+    nrows = 30
+    ncols = 5
+    {x, new_key} = Nx.Random.normal(context.key, 0, 1, shape: {nrows, ncols})
+    {y, _new_key} = Nx.Random.normal(new_key, 0, 1, shape: {nrows})
+
+    booster =
+      EXGBoost.train(x, y,
+        num_boost_rounds: 30,
+        tree_method: :hist,
+        eval_metric: :rmse
+      )
+
+    sample = Nx.slice_along_axis(x, 0, 1, axis: 0)
+
+    [baseline_confidence] =
+      EXGBoost.predict(booster, sample)
+      |> Nx.to_flat_list()
+
+    for i <- 1..10 do
+      [confidence] =
+        EXGBoost.predict(booster, sample)
+        |> Nx.to_flat_list()
+
+      assert_in_delta confidence,
+                      baseline_confidence,
+                      1.0e-9,
+                      "Expected confidence to match baseline #{baseline_confidence}, got #{confidence} for iteration #{i}"
+    end
+  end
+
   test "predict with container", context do
     nrows = :rand.uniform(10)
     ncols = :rand.uniform(10)
@@ -327,6 +380,37 @@ defmodule EXGBoostTest do
     array_interface = struct(array_interface, tensor: nil)
 
     assert EXGBoost.ArrayInterface.get_tensor(array_interface) == tensor
+  end
+
+  test "array interface from_map ignores optional keys" do
+    arr_int =
+      EXGBoost.ArrayInterface.from_map(%{
+        "typestr" => "<f4",
+        "shape" => [2, 2],
+        "data" => [123, true],
+        "version" => 3,
+        "strides" => nil,
+        "descr" => [["", "<f4"]]
+      })
+
+    assert arr_int.typestr == "<f4"
+    assert arr_int.shape == {2, 2}
+    assert arr_int.address == 123
+    assert arr_int.readonly == true
+    assert arr_int.version == 3
+  end
+
+  test "array interface get_tensor raises on unsupported endianness" do
+    assert_raise ArgumentError, ~r/Unsupported endianness/, fn ->
+      EXGBoost.ArrayInterface.get_tensor(%EXGBoost.ArrayInterface{
+        typestr: ">f4",
+        shape: {1},
+        address: 1,
+        readonly: true,
+        tensor: nil,
+        binary: <<>>
+      })
+    end
   end
 
   describe "errors" do
