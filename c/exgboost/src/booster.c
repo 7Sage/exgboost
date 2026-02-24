@@ -49,6 +49,7 @@ ERL_NIF_TERM EXGBoosterCreate(ErlNifEnv *env, int argc,
     ret = exg_error(env, XGBGetLastError());
   }
 END:
+  exg_free_dmatrix_list(dmats);
   return ret;
 }
 
@@ -155,6 +156,12 @@ ERL_NIF_TERM EXGBoosterSetParam(ErlNifEnv *env, int argc,
     ret = exg_error(env, XGBGetLastError());
   }
 END:
+  if (name != NULL) {
+    enif_free(name);
+  }
+  if (value != NULL) {
+    enif_free(value);
+  }
   return ret;
 }
 
@@ -327,6 +334,8 @@ ERL_NIF_TERM EXGBoosterEvalOneIter(ErlNifEnv *env, int argc,
     ret = exg_error(env, XGBGetLastError());
   }
 END:
+  exg_free_dmatrix_list(dmats);
+  exg_free_string_list(evnames, num_evnames);
   return ret;
 }
 
@@ -364,6 +373,9 @@ ERL_NIF_TERM EXGBoosterGetAttr(ErlNifEnv *env, int argc,
     ret = exg_error(env, XGBGetLastError());
   }
 END:
+  if (key != NULL) {
+    enif_free(key);
+  }
   return ret;
 }
 
@@ -415,6 +427,12 @@ ERL_NIF_TERM EXGBoosterSetAttr(ErlNifEnv *env, int argc,
     ret = exg_error(env, XGBGetLastError());
   }
 END:
+  if (key != NULL) {
+    enif_free(key);
+  }
+  if (value != NULL) {
+    enif_free(value);
+  }
   return ret;
 }
 
@@ -493,8 +511,10 @@ ERL_NIF_TERM EXGBoosterSetStrFeatureInfo(ErlNifEnv *env, int argc,
   }
 END:
   if (features != NULL) {
-    enif_free(features);
-    features = NULL;
+    exg_free_string_list(features, num_features);
+  }
+  if (field != NULL) {
+    enif_free(field);
   }
   return ret;
 }
@@ -596,6 +616,9 @@ ERL_NIF_TERM EXGBoosterFeatureScore(ErlNifEnv *env, int argc,
     ret = exg_error(env, XGBGetLastError());
   }
 END:
+  if (config != NULL) {
+    enif_free(config);
+  }
   return ret;
 }
 

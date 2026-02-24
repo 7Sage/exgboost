@@ -286,8 +286,10 @@ ERL_NIF_TERM EXGDMatrixSetStrFeatureInfo(ErlNifEnv *env, int argc,
   }
 END:
   if (features != NULL) {
-    enif_free(features);
-    features = NULL;
+    exg_free_string_list(features, num_features);
+  }
+  if (field != NULL) {
+    enif_free(field);
   }
   return ret;
 }
@@ -766,6 +768,15 @@ END:
   if (out_data != NULL) {
     free(out_data);
     out_data = NULL;
+  }
+  if (indptr != NULL) {
+    enif_free(indptr);
+  }
+  if (indices != NULL) {
+    enif_free(indices);
+  }
+  if (data != NULL) {
+    enif_free(data);
   }
   return ret;
 };
