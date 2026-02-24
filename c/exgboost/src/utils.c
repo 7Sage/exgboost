@@ -121,6 +121,24 @@ int exg_get_dmatrix_list(ErlNifEnv *env, ERL_NIF_TERM term,
   return 1;
 }
 
+void exg_free_string_list(char **items, unsigned len) {
+  if (items == NULL) {
+    return;
+  }
+  for (unsigned i = 0; i < len; ++i) {
+    if (items[i] != NULL) {
+      enif_free(items[i]);
+    }
+  }
+  enif_free(items);
+}
+
+void exg_free_dmatrix_list(DMatrixHandle *dmats) {
+  if (dmats != NULL) {
+    enif_free(dmats);
+  }
+}
+
 ERL_NIF_TERM exg_get_binary_address(ErlNifEnv *env, int argc,
                                     const ERL_NIF_TERM argv[]) {
   ErlNifBinary bin;
