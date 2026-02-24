@@ -834,7 +834,7 @@ defmodule EXGBoost.Plotting do
   @spec get_defaults() :: Keyword.t()
   def get_defaults(), do: @defaults
 
-  @spec get_styles() :: [{atom(), style()}, ...]
+  @spec get_styles() :: EXGBoost.Plotting.Style.t()
   def get_styles(), do: @styles
 
   defp validate_spec(spec) do
