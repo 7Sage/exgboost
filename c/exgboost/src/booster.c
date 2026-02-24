@@ -565,7 +565,7 @@ ERL_NIF_TERM EXGBoosterFeatureScore(ErlNifEnv *env, int argc,
                                     const ERL_NIF_TERM argv[]) {
   BoosterHandle booster;
   BoosterHandle **booster_resource = NULL;
-  char **config = NULL;
+  char *config = NULL;
   bst_ulong out_n_features = 0;
   char **out_features = NULL;
   bst_ulong out_dim = 0;
