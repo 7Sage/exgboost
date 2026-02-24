@@ -17,7 +17,6 @@ XGBOOST_LIB_DIR = $(XGBOOST_DIR)/build/xgboost
 XGBOOST_LIB_DIR_FLAG = $(XGBOOST_LIB_DIR)/exgboost.ok
 
 # Set build type based on MIX_ENV
-MIX_ENV ?= dev
 ifeq ($(MIX_ENV), prod)
 	CMAKE_BUILD_TYPE = Release
 else
