@@ -835,6 +835,7 @@ ERL_NIF_TERM EXGBoosterLoadModel(ErlNifEnv *env, int argc,
   if (result == 0) {
     ret = make_Booster_resource(env, booster);
   } else {
+    XGBoosterFree(booster);
     ret = exg_error(env, XGBGetLastError());
   }
 END:
@@ -937,6 +938,7 @@ ERL_NIF_TERM EXGBoosterDeserializeFromBuffer(ErlNifEnv *env, int argc,
   if (result == 0) {
     ret = make_Booster_resource(env, booster);
   } else {
+    XGBoosterFree(booster);
     ret = exg_error(env, XGBGetLastError());
   }
 END:
@@ -972,6 +974,7 @@ ERL_NIF_TERM EXGBoosterLoadModelFromBuffer(ErlNifEnv *env, int argc,
   if (result == 0) {
     ret = make_Booster_resource(env, booster);
   } else {
+    XGBoosterFree(booster);
     ret = exg_error(env, XGBGetLastError());
   }
 END:
