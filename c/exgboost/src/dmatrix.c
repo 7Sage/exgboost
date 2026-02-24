@@ -7,6 +7,7 @@ static ERL_NIF_TERM make_DMatrix_resource(ErlNifEnv *env,
       enif_alloc_resource(DMatrix_RESOURCE_TYPE, sizeof(DMatrixHandle *));
   if (resource != NULL) {
     *resource = handle;
+    // BEAM resource now owns the handle and releases it in resource cleanup.
     ret = exg_ok(env, enif_make_resource(env, resource));
     enif_release_resource(resource);
   } else {
@@ -212,71 +213,6 @@ END:
   return ret;
 }
 
-ERL_NIF_TERM EXGDMatrixCreateFromCSREx(ErlNifEnv *env, int argc,
-                                       const ERL_NIF_TERM argv[]) {
-  ErlNifBinary indptr_bin;
-  ErlNifBinary indices_bin;
-  ErlNifBinary data_bin;
-  int result = -1;
-  ErlNifUInt64 *indptr = NULL;
-  uint32_t *indices = NULL;
-  float *data = NULL;
-  uint32_t nindptr = 0;
-  ErlNifUInt64 nelem = 0;
-  ErlNifUInt64 ncol = 0;
-  DMatrixHandle handle;
-  ERL_NIF_TERM ret = 0;
-  if (argc != 6) {
-    ret = exg_error(env, "Wrong number of arguments");
-    goto END;
-  }
-  if (!enif_inspect_binary(env, argv[0], &indptr_bin)) {
-    ret = exg_error(env, "Indptr must be a binary of uint64_t");
-    goto END;
-  }
-  if (!enif_inspect_binary(env, argv[1], &indices_bin)) {
-    ret = exg_error(env, "Indices must be a binary of uint64_t");
-    goto END;
-  }
-  if (!enif_inspect_binary(env, argv[2], &data_bin)) {
-    ret = exg_error(env, "Data must be a binary of uint64_t");
-    goto END;
-  }
-  if (!enif_get_uint(env, argv[3], &nindptr)) {
-    ret = exg_error(env, "Nindptr must be a uint64_t");
-    goto END;
-  }
-  if (!enif_get_uint64(env, argv[4], &nelem)) {
-    ret = exg_error(env, "Nelem must be a uint64_t");
-    goto END;
-  }
-  if (!enif_get_uint64(env, argv[5], &ncol)) {
-    ret = exg_error(env, "Ncol must be a uint64_t");
-    goto END;
-  }
-  indptr = (ErlNifUInt64 *)indptr_bin.data;
-  indices = (uint32_t *)indices_bin.data;
-  data = (float *)data_bin.data;
-  if (indptr_bin.size != nindptr * sizeof(ErlNifUInt64)) {
-    ret = exg_error(env, "Indptr size does not match nindptr");
-    goto END;
-  }
-  if (data_bin.size != nelem * sizeof(float)) {
-    ret = exg_error(env, "Data size does not match nelem");
-    goto END;
-  }
-  result = XGDMatrixCreateFromCSREx(indptr, indices, data, nindptr, nelem, ncol,
-                                    &handle);
-  if (result == 0) {
-    ret = exg_ok(env, enif_make_resource(env, handle));
-    enif_release_resource(handle);
-  } else {
-    ret = exg_error(env, XGBGetLastError());
-  }
-END:
-  return ret;
-}
-
 ERL_NIF_TERM EXGDMatrixCreateFromDense(ErlNifEnv *env, int argc,
                                        const ERL_NIF_TERM argv[]) {
   int result = -1;
@@ -343,16 +279,21 @@ ERL_NIF_TERM EXGDMatrixSetStrFeatureInfo(ErlNifEnv *env, int argc,
     goto END;
   }
   handle = *resource;
-  result = XGDMatrixSetStrFeatureInfo(handle, field, features, num_features);
+  // XGBoost reads features during the call; caller keeps ownership.
+  result = XGDMatrixSetStrFeatureInfo(handle, field,
+                                      (const char **)features, num_features);
   if (result == 0) {
     ret = ok_atom(env);
   } else {
     ret = exg_error(env, XGBGetLastError());
   }
 END:
+  // Helper-allocated buffers must be reclaimed on all paths.
   if (features != NULL) {
-    enif_free(features);
-    features = NULL;
+    exg_free_string_list(features, num_features);
+  }
+  if (field != NULL) {
+    enif_free(field);
   }
   return ret;
 }
@@ -390,10 +331,8 @@ ERL_NIF_TERM EXGDMatrixGetStrFeatureInfo(ErlNifEnv *env, int argc,
   if (result == 0) {
     ERL_NIF_TERM arr[out_size];
     for (bst_ulong i = 0; i < out_size; ++i) {
-      char *local = enif_alloc(strlen(c_out_features[i]) + 1);
-      strcpy(local, c_out_features[i]);
-      arr[i] = enif_make_string(env, local, ERL_NIF_LATIN1);
-      // TODO: Do we free here or is it handled by the XGBoost library / BEAM?
+      // enif_make_string materializes a BEAM term; no temporary C copy needed.
+      arr[i] = enif_make_string(env, c_out_features[i], ERL_NIF_LATIN1);
     }
     ret = exg_ok(env, enif_make_list_from_array(env, arr, out_size));
   } else {
@@ -646,7 +585,7 @@ ERL_NIF_TERM EXGDMatrixGetFloatInfo(ErlNifEnv *env, int argc,
   DMatrixHandle handle;
   DMatrixHandle **resource = NULL;
   char *field = NULL;
-  float *out = NULL;
+  const float *out = NULL;
   bst_ulong len = 0;
   int result = -1;
   ERL_NIF_TERM ret = 0;
@@ -679,6 +618,7 @@ ERL_NIF_TERM EXGDMatrixGetFloatInfo(ErlNifEnv *env, int argc,
   if (result == 0) {
     arr = enif_alloc(sizeof(ERL_NIF_TERM) * len);
     for (int i = 0; i < len; i++) {
+      // Values are copied into BEAM-managed terms here.
       arr[i] = enif_make_double(env, out[i]);
     }
     ret = exg_ok(env, enif_make_list_from_array(env, arr, len));
@@ -700,7 +640,7 @@ ERL_NIF_TERM EXGDMatrixGetUIntInfo(ErlNifEnv *env, int argc,
   DMatrixHandle handle;
   DMatrixHandle **resource = NULL;
   char *field = NULL;
-  unsigned *out = NULL;
+  const unsigned *out = NULL;
   bst_ulong len = 0;
   int result = -1;
   ERL_NIF_TERM ret = 0;
@@ -728,6 +668,7 @@ ERL_NIF_TERM EXGDMatrixGetUIntInfo(ErlNifEnv *env, int argc,
   if (result == 0) {
     arr = enif_alloc(sizeof(ERL_NIF_TERM) * len);
     for (int i = 0; i < len; i++) {
+      // Values are copied into BEAM-managed terms here.
       arr[i] = enif_make_uint(env, out[i]);
     }
     ret = exg_ok(env, enif_make_list_from_array(env, arr, len));
@@ -816,6 +757,7 @@ ERL_NIF_TERM EXGDMatrixGetDataAsCSR(ErlNifEnv *env, int argc,
                       enif_make_list_from_array(env, indices, num_non_missing),
                       enif_make_list_from_array(env, data, num_non_missing)));
 END:
+  // Mixed allocators: enif_free for enif_alloc buffers, free for malloc buffers.
   if (config != NULL) {
     enif_free(config);
     config = NULL;
@@ -831,6 +773,15 @@ END:
   if (out_data != NULL) {
     free(out_data);
     out_data = NULL;
+  }
+  if (indptr != NULL) {
+    enif_free(indptr);
+  }
+  if (indices != NULL) {
+    enif_free(indices);
+  }
+  if (data != NULL) {
+    enif_free(data);
   }
   return ret;
 };

@@ -1,6 +1,6 @@
 defmodule EXGBoost.MixProject do
   use Mix.Project
-  @version "0.5.2"
+  @version "0.6.0"
 
   def project do
     [
@@ -15,7 +15,7 @@ defmodule EXGBoost.MixProject do
       make_precompiler_nif_versions: [
         versions: ["2.15", "2.16", "2.17"]
       ],
-      elixir: "~> 1.14",
+      elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       compilers: [:elixir_make] ++ Mix.compilers(),
       deps: deps(),
@@ -24,16 +24,16 @@ defmodule EXGBoost.MixProject do
       homepage_url: "https://github.com/acalejos/exgboost",
       docs: docs(),
       package: package(),
-      preferred_cli_env: [
-        docs: :docs,
-        "hex.publish": :docs
-      ],
       before_closing_body_tag: &before_closing_body_tag/1,
       name: "EXGBoost",
       description:
         "Elixir bindings for the XGBoost library. `EXGBoost` provides an implementation of XGBoost that works with
       [Nx](https://hexdocs.pm/nx/Nx.html) tensors."
     ]
+  end
+
+  def cli do
+    [preferred_envs: [docs: :docs, "hex.publish": :docs]]
   end
 
   def application do
@@ -49,7 +49,7 @@ defmodule EXGBoost.MixProject do
       {:nimble_options, "~> 1.0"},
       {:nx, "~> 0.7"},
       {:jason, "~> 1.3"},
-      {:ex_doc, "~> 0.31.0", only: :docs},
+      {:ex_doc, "~> 0.40", only: :docs},
       {:cc_precompiler, "~> 0.1.0", runtime: false},
       {:exterval, "0.2.0"},
       {:ex_json_schema, "~> 0.11.0"},
@@ -58,7 +58,8 @@ defmodule EXGBoost.MixProject do
       {:vega_lite_convert, "~> 1.0.1"},
       {:kino, "~> 0.11"},
       {:scidata, "~> 0.1", only: :dev},
-      {:kino_vega_lite, "~> 0.1.9", only: :dev}
+      {:kino_vega_lite, "~> 0.1.9", only: :dev},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 

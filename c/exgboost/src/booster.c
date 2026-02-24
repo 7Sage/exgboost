@@ -7,6 +7,7 @@ static ERL_NIF_TERM make_Booster_resource(ErlNifEnv *env,
       enif_alloc_resource(Booster_RESOURCE_TYPE, sizeof(BoosterHandle *));
   if (resource != NULL) {
     *resource = handle;
+    // BEAM resource now owns the handle and releases it in resource cleanup.
     ret = exg_ok(env, enif_make_resource(env, resource));
     enif_release_resource(resource);
   } else {
@@ -49,6 +50,8 @@ ERL_NIF_TERM EXGBoosterCreate(ErlNifEnv *env, int argc,
     ret = exg_error(env, XGBGetLastError());
   }
 END:
+  // exg_get_dmatrix_list allocates this temporary array.
+  exg_free_dmatrix_list(dmats);
   return ret;
 }
 
@@ -148,6 +151,7 @@ ERL_NIF_TERM EXGBoosterSetParam(ErlNifEnv *env, int argc,
     ret = exg_error(env, "Booster parameter value must be a string");
     goto END;
   }
+  // XGBoost consumes name/value during this call; no ownership transfer.
   result = XGBoosterSetParam(booster, name, value);
   if (result == 0) {
     ret = enif_make_atom(env, "ok");
@@ -155,6 +159,12 @@ ERL_NIF_TERM EXGBoosterSetParam(ErlNifEnv *env, int argc,
     ret = exg_error(env, XGBGetLastError());
   }
 END:
+  if (name != NULL) {
+    enif_free(name);
+  }
+  if (value != NULL) {
+    enif_free(value);
+  }
   return ret;
 }
 
@@ -327,6 +337,9 @@ ERL_NIF_TERM EXGBoosterEvalOneIter(ErlNifEnv *env, int argc,
     ret = exg_error(env, XGBGetLastError());
   }
 END:
+  // Helper-allocated arrays must be reclaimed on all paths.
+  exg_free_dmatrix_list(dmats);
+  exg_free_string_list(evnames, num_evnames);
   return ret;
 }
 
@@ -364,6 +377,9 @@ ERL_NIF_TERM EXGBoosterGetAttr(ErlNifEnv *env, int argc,
     ret = exg_error(env, XGBGetLastError());
   }
 END:
+  if (key != NULL) {
+    enif_free(key);
+  }
   return ret;
 }
 
@@ -415,6 +431,12 @@ ERL_NIF_TERM EXGBoosterSetAttr(ErlNifEnv *env, int argc,
     ret = exg_error(env, XGBGetLastError());
   }
 END:
+  if (key != NULL) {
+    enif_free(key);
+  }
+  if (value != NULL) {
+    enif_free(value);
+  }
   return ret;
 }
 
@@ -440,10 +462,7 @@ ERL_NIF_TERM EXGBoosterGetAttrNames(ErlNifEnv *env, int argc,
   if (result == 0) {
     ERL_NIF_TERM arr[out_len];
     for (bst_ulong i = 0; i < out_len; ++i) {
-      char *local = enif_alloc(strlen(out[i]) + 1);
-      strcpy(local, out[i]);
-      arr[i] = enif_make_string(env, local, ERL_NIF_LATIN1);
-      // TODO: Do we free here or is it handled by the XGBoost library / BEAM?
+      arr[i] = enif_make_string(env, out[i], ERL_NIF_LATIN1);
     }
     ret = exg_ok(env, enif_make_list_from_array(env, arr, out_len));
   } else {
@@ -493,8 +512,10 @@ ERL_NIF_TERM EXGBoosterSetStrFeatureInfo(ErlNifEnv *env, int argc,
   }
 END:
   if (features != NULL) {
-    enif_free(features);
-    features = NULL;
+    exg_free_string_list(features, num_features);
+  }
+  if (field != NULL) {
+    enif_free(field);
   }
   return ret;
 }
@@ -531,10 +552,8 @@ ERL_NIF_TERM EXGBoosterGetStrFeatureInfo(ErlNifEnv *env, int argc,
   if (result == 0) {
     ERL_NIF_TERM arr[out_size];
     for (bst_ulong i = 0; i < out_size; ++i) {
-      char *local = enif_alloc(strlen(c_out_features[i]) + 1);
-      strcpy(local, c_out_features[i]);
-      arr[i] = enif_make_string(env, local, ERL_NIF_LATIN1);
-      // TODO: Do we free here or is it handled by the XGBoost library / BEAM?
+      // enif_make_string materializes a BEAM term; no temporary C copy needed.
+      arr[i] = enif_make_string(env, c_out_features[i], ERL_NIF_LATIN1);
     }
     ret = exg_ok(env, enif_make_list_from_array(env, arr, out_size));
   } else {
@@ -551,7 +570,7 @@ ERL_NIF_TERM EXGBoosterFeatureScore(ErlNifEnv *env, int argc,
                                     const ERL_NIF_TERM argv[]) {
   BoosterHandle booster;
   BoosterHandle **booster_resource = NULL;
-  char **config = NULL;
+  char *config = NULL;
   bst_ulong out_n_features = 0;
   char **out_features = NULL;
   bst_ulong out_dim = 0;
@@ -596,6 +615,9 @@ ERL_NIF_TERM EXGBoosterFeatureScore(ErlNifEnv *env, int argc,
     ret = exg_error(env, XGBGetLastError());
   }
 END:
+  if (config != NULL) {
+    enif_free(config);
+  }
   return ret;
 }
 
@@ -612,6 +634,7 @@ static ERL_NIF_TERM collect_prediction_results(ErlNifEnv *env,
   ERL_NIF_TERM shape = enif_make_tuple_from_array(env, shape_arr, out_dim);
   ERL_NIF_TERM result_arr[out_len];
   for (bst_ulong i = 0; i < out_len; ++i) {
+    // Values are copied into BEAM-managed terms here.
     result_arr[i] = enif_make_double(env, out_result[i]);
   }
   return exg_ok(env, enif_make_tuple2(
@@ -818,6 +841,7 @@ ERL_NIF_TERM EXGBoosterLoadModel(ErlNifEnv *env, int argc,
   if (result == 0) {
     ret = make_Booster_resource(env, booster);
   } else {
+    XGBoosterFree(booster);
     ret = exg_error(env, XGBGetLastError());
   }
 END:
@@ -920,6 +944,7 @@ ERL_NIF_TERM EXGBoosterDeserializeFromBuffer(ErlNifEnv *env, int argc,
   if (result == 0) {
     ret = make_Booster_resource(env, booster);
   } else {
+    XGBoosterFree(booster);
     ret = exg_error(env, XGBGetLastError());
   }
 END:
@@ -955,6 +980,7 @@ ERL_NIF_TERM EXGBoosterLoadModelFromBuffer(ErlNifEnv *env, int argc,
   if (result == 0) {
     ret = make_Booster_resource(env, booster);
   } else {
+    XGBoosterFree(booster);
     ret = exg_error(env, XGBGetLastError());
   }
 END:
@@ -1116,10 +1142,7 @@ ERL_NIF_TERM EXGBoosterDumpModelEx(ErlNifEnv *env, int argc,
   if (result == 0) {
     ERL_NIF_TERM arr[out_len];
     for (bst_ulong i = 0; i < out_len; ++i) {
-      char *local = enif_alloc(strlen(out_dump_array[i]) + 1);
-      strcpy(local, out_dump_array[i]);
-      arr[i] = enif_make_string(env, local, ERL_NIF_LATIN1);
-      // TODO: Do we free here or is it handled by the XGBoost library / BEAM ?
+      arr[i] = enif_make_string(env, out_dump_array[i], ERL_NIF_LATIN1);
     }
     ret = exg_ok(env, enif_make_list_from_array(env, arr, out_len));
   } else {

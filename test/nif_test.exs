@@ -7,6 +7,12 @@ defmodule NifTest do
     assert EXGBoost.NIF.xgboost_version() |> unwrap!() != :error
   end
 
+  test "unwrap! raises string error for charlist reasons" do
+    assert_raise ArgumentError, "boom", fn ->
+      unwrap!({:error, ~c"boom"})
+    end
+  end
+
   test "build_info" do
     assert EXGBoost.NIF.xgboost_build_info() |> unwrap!() != :error
   end

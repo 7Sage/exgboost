@@ -355,13 +355,14 @@ defmodule EXGBoost.NIF do
           :ok | {:error, String.t()}
   def booster_save_model(_handle, _path), do: :erlang.nif_error(:not_implemented)
 
-  @spec booster_serialize_to_buffer(booster_reference()) :: binary()
+  @spec booster_serialize_to_buffer(booster_reference()) :: {:ok, binary()} | {:error, String.t()}
   def booster_serialize_to_buffer(_handle), do: :erlang.nif_error(:not_implemented)
 
   @spec booster_deserialize_from_buffer(binary()) :: exgboost_return_type(booster_reference())
   def booster_deserialize_from_buffer(_buffer), do: :erlang.nif_error(:not_implemented)
 
-  @spec booster_save_model_to_buffer(booster_reference(), String.t()) :: binary()
+  @spec booster_save_model_to_buffer(booster_reference(), String.t()) ::
+          {:ok, binary()} | {:error, String.t()}
   def booster_save_model_to_buffer(_handle, _config), do: :erlang.nif_error(:not_implemented)
 
   @spec booster_load_model_from_buffer(binary()) :: exgboost_return_type(booster_reference())
@@ -370,7 +371,7 @@ defmodule EXGBoost.NIF do
   @spec booster_load_json_config(booster_reference(), String.t()) :: :ok | {:error, String.t()}
   def booster_load_json_config(_handle, _config), do: :erlang.nif_error(:not_implemented)
 
-  @spec booster_save_json_config(booster_reference()) :: binary()
+  @spec booster_save_json_config(booster_reference()) :: {:ok, binary()} | {:error, String.t()}
   def booster_save_json_config(_handle), do: :erlang.nif_error(:not_implemented)
 
   def booster_dump_model(_handle, _fmap, _with_stats, _format),

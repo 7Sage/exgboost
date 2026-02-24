@@ -42,4 +42,8 @@ int exg_get_string_list(ErlNifEnv *env, ERL_NIF_TERM term, char ***out,
 int exg_get_dmatrix_list(ErlNifEnv *env, ERL_NIF_TERM term,
                          DMatrixHandle **dmats, unsigned *len);
 
+void exg_free_string_list(char **items, unsigned len);
+
+void exg_free_dmatrix_list(DMatrixHandle *dmats);
+
 #endif
