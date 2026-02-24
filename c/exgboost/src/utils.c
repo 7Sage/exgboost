@@ -61,12 +61,14 @@ int exg_get_list(ErlNifEnv *env, ERL_NIF_TERM term, double **out) {
     return 0;
   }
   *out = (double *)enif_alloc(len * sizeof(double));
-  if (out == NULL) {
+  if (*out == NULL) {
     return 0;
   }
   while (enif_get_list_cell(env, term, &head, &tail)) {
     int ret = enif_get_double(env, head, &((*out)[i]));
     if (!ret) {
+      enif_free(*out);
+      *out = NULL;
       return 0;
     }
     term = tail;
@@ -89,6 +91,8 @@ int exg_get_string_list(ErlNifEnv *env, ERL_NIF_TERM term, char ***out,
   while (enif_get_list_cell(env, term, &head, &tail)) {
     int ret = exg_get_string(env, head, &((*out)[i]));
     if (!ret) {
+      exg_free_string_list(*out, i);
+      *out = NULL;
       return 0;
     }
     term = tail;
@@ -105,13 +109,15 @@ int exg_get_dmatrix_list(ErlNifEnv *env, ERL_NIF_TERM term,
     return 0;
   }
   *dmats = (DMatrixHandle *)enif_alloc(*len * sizeof(DMatrixHandle));
-  if (NULL == dmats) {
+  if (NULL == *dmats) {
     return 0;
   }
   while (enif_get_list_cell(env, term, &head, &tail)) {
     DMatrixHandle **resource = NULL;
     if (!enif_get_resource(env, head, DMatrix_RESOURCE_TYPE,
                            (void *)&(resource))) {
+      exg_free_dmatrix_list(*dmats);
+      *dmats = NULL;
       return 0;
     }
     memcpy(&((*dmats)[i]), resource, sizeof(DMatrixHandle));
