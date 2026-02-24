@@ -361,7 +361,8 @@ defmodule EXGBoost.NIF do
   @spec booster_deserialize_from_buffer(binary()) :: exgboost_return_type(booster_reference())
   def booster_deserialize_from_buffer(_buffer), do: :erlang.nif_error(:not_implemented)
 
-  @spec booster_save_model_to_buffer(booster_reference(), String.t()) :: {:ok, binary()} | {:error, String.t()}
+  @spec booster_save_model_to_buffer(booster_reference(), String.t()) ::
+          {:ok, binary()} | {:error, String.t()}
   def booster_save_model_to_buffer(_handle, _config), do: :erlang.nif_error(:not_implemented)
 
   @spec booster_load_model_from_buffer(binary()) :: exgboost_return_type(booster_reference())

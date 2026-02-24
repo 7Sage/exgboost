@@ -59,7 +59,7 @@ defmodule EXGBoost.MixProject do
       {:kino, "~> 0.11"},
       {:scidata, "~> 0.1", only: :dev},
       {:kino_vega_lite, "~> 0.1.9", only: :dev},
-      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 
