@@ -294,13 +294,23 @@ defmodule EXGBoost.Booster do
           EXGBoost.NIF.booster_load_json_config(booster.ref, config) |> Internal.unwrap!()
 
         :model ->
-          EXGBoost.NIF.booster_deserialize_from_buffer(source) |> Internal.unwrap!()
+          load_model_with_fallback(source)
 
         :weights ->
           EXGBoost.NIF.booster_load_model_from_buffer(source) |> Internal.unwrap!()
       end
 
     struct(booster, ref: booster_ref)
+  end
+
+  defp load_model_with_fallback(source) do
+    case EXGBoost.NIF.booster_load_model_from_buffer(source) do
+      {:error, _reason} ->
+        EXGBoost.NIF.booster_deserialize_from_buffer(source) |> Internal.unwrap!()
+
+      result ->
+        Internal.unwrap!(result)
+    end
   end
 
   @doc """

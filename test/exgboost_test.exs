@@ -333,6 +333,24 @@ defmodule EXGBoostTest do
     assert is_struct(bst, EXGBoost.Booster)
   end
 
+  test "load_model accepts model artifacts produced by dump_weights", context do
+    nrows = :rand.uniform(10)
+    ncols = :rand.uniform(10)
+    {x, _new_key} = Nx.Random.normal(context[:key], 0, 1, shape: {nrows, ncols})
+    {y, _new_key} = Nx.Random.normal(context[:key], 0, 1, shape: {nrows})
+
+    booster =
+      EXGBoost.train(x, y,
+        num_boost_rounds: 10,
+        tree_method: :hist,
+        eval_metric: :rmse
+      )
+
+    buffer = EXGBoost.dump_weights(booster)
+    bst = EXGBoost.load_model(buffer)
+    assert is_struct(bst, EXGBoost.Booster)
+  end
+
   test "serialize and deserialize weights to and from buffer", context do
     nrows = :rand.uniform(10)
     ncols = :rand.uniform(10)
