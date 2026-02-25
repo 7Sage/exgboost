@@ -80,7 +80,7 @@ defmodule EXGBoostTest do
     assert Booster.get_boosted_rounds(booster) == num_boost_round
   end
 
-  test "predict", context do
+  test "predict matches inplace_predict", context do
     nrows = :rand.uniform(10)
     ncols = :rand.uniform(10)
     {x, new_key} = Nx.Random.normal(context.key, 0, 1, shape: {nrows, ncols})

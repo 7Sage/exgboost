@@ -119,6 +119,18 @@ It accepts a `Booster` struct (which is the output of `EXGBoost.train/2`).
 preds = EXGBoost.train(X, y) |> EXGBoost.predict(X)
 ```
 
+## Concurrency and Thread Safety
+
+**Important**: Booster objects are **not thread-safe** for concurrent predictions. The underlying XGBoost C API does not provide synchronization mechanisms, and sharing a single booster reference across multiple Elixir processes for concurrent predictions can lead to race conditions, memory corruption, or incorrect results. For this reason it is not recommended that you cache boosters to be used
+by multiple tasks in calling applications.
+
+### Why This Matters
+
+- `EXGBoost.predict/2` and `EXGBoost.inplace_predict/2` both use dirty CPU-bound NIF schedulers
+- This prevents blocking the BEAM scheduler but **does not** provide thread safety
+- Concurrent access to the same booster from multiple processes can cause undefined behavior
+
+
 ## Serialization
 
   A Booster can be serialized to a file using `EXGBoost.write_*` and loaded from a file
