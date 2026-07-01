@@ -54,21 +54,16 @@ jobs:
             cache/*.tar.gz
 
   macos:
-    runs-on: ${{matrix.runner}}
-    name: Mac (ARM) Erlang/OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
+    runs-on: macos-15
+    name: Mac (ARM) Erlang/OTP 29.0.2 / Elixir 1.20.2
     env:
       MIX_ENV: "prod"
-    strategy:
-      matrix:
-        runner: ["macos-15"]
-        otp: ["27.0", "28.0"]
-        elixir: ["1.18.4"]
     steps:
       - uses: actions/checkout@v5
       - uses: erlef/setup-beam@v1
         with:
-          otp-version: ${{matrix.otp}}
-          elixir-version: ${{matrix.elixir}}
+          otp-version: "29.0.2"
+          elixir-version: "1.20.2"
       - name: Install libomp
         run: |
           brew install libomp
