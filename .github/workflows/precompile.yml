@@ -22,7 +22,7 @@ jobs:
           - otp: "29.0.2"
             elixir: "1.20.2"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{matrix.otp}}
@@ -67,7 +67,7 @@ jobs:
         otp: ["27.0", "28.0"]
         elixir: ["1.18.4"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: asdf-vm/actions/setup@v3
       - uses: asdf-vm/actions/install@v3
         with:
