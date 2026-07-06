@@ -48,7 +48,7 @@ defmodule EXGBoost.MixProject do
     [
       {:elixir_make, "~> 0.4", runtime: false},
       {:nimble_options, "~> 1.0"},
-      {:nx, "~> 0.7"},
+      {:nx, "~> 0.9"},
       {:jason, "~> 1.3"},
       {:ex_doc, "~> 0.40", only: :docs},
       {:cc_precompiler, "~> 0.1.0", runtime: false},
