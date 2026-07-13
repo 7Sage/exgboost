@@ -130,7 +130,6 @@ by multiple tasks in calling applications.
 - This prevents blocking the BEAM scheduler but **does not** provide thread safety
 - Concurrent access to the same booster from multiple processes can cause undefined behavior
 
-
 ## Serialization
 
   A Booster can be serialized to a file using `EXGBoost.write_*` and loaded from a file
@@ -166,17 +165,6 @@ by multiple tasks in calling applications.
 
   You can see available styles by running `EXGBoost.Plotting.get_styles()` or refer to the `EXGBoost.Plotting.Styles`
   documentation for a gallery of the styles.
-
-## Kino & Livebook Integration
-
-  `EXGBoost` integrates with [Kino](https://hexdocs.pm/kino/Kino.html) and [Livebook](https://livebook.dev/)
-  to provide a rich interactive experience for data scientists.
-
-  EXGBoost implements the `Kino.Render` protocol for `EXGBoost.Booster` structs. This allows you to render
-  a Booster in a Livebook notebook.  Under the hood, `EXGBoost` uses [Vega-Lite](https://vega.github.io/vega-lite/)
-  and [Kino Vega-Lite](https://hexdocs.pm/kino_vega_lite/Kino.VegaLite.html) to render the Booster.
-
-  See the [`Plotting in EXGBoost`](notebooks/plotting.livemd) Notebook for an example of how to use `EXGBoost` with `Kino` and `Livebook`.
 
 ## Examples
 
@@ -250,4 +238,3 @@ Native compatibility checks:
   `scripts/check_xgboost_c_api.sh --compare <old-include-dir> <new-include-dir>`
 - Or use make to fetch and compare tags directly:
   `make compare-xgboost-c-api OLD_XGBOOST_GIT_REV=v3.0.5 NEW_XGBOOST_GIT_REV=v3.1.3`
-
