@@ -56,9 +56,7 @@ defmodule EXGBoost.MixProject do
       {:ex_json_schema, "~> 0.11.4"},
       {:vega_lite, "~> 0.1"},
       {:vega_lite_convert, "~> 1.0.1"},
-      {:kino, "~> 0.11"},
       {:scidata, "~> 0.1", only: :dev},
-      {:kino_vega_lite, "~> 0.1.9", only: :dev},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end

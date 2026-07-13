@@ -801,15 +801,6 @@ defmodule EXGBoost.Plotting do
   to ensure that it is valid. Note that this will only validate the specification against the Vega schema, and not against the
   VegaLite schema. This requires the [`ex_json_schema`] package to be installed.
 
-  ## Livebook Integration
-
-  This module also provides a `Kino.Render` implementation for `EXGBoost.Booster` which allows
-  models to be rendered directly in Livebook. This is done by converting the model into a Vega specification
-  and then using the `Kino.Render` implementation for Elixir's [`VegaLite`](https://hexdocs.pm/vega_lite/VegaLite.html) API
-  to render the model.
-
-  . The Vega specification is then passed to [VegaLite](https://hexdocs.pm/vega_lite/readme.html)
-
   ## Plotting Parameters
 
   This module exposes a high-level API for customizing the EXGBoost model visualization, but it is also possible to
@@ -1771,8 +1762,3 @@ defmodule EXGBoost.Plotting do
   end
 end
 
-defimpl Kino.Render, for: EXGBoost.Booster do
-  def to_livebook(booster) do
-    EXGBoost.Plotting.plot(booster) |> Kino.Render.to_livebook()
-  end
-end
