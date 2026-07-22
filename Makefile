@@ -50,6 +50,14 @@ ifeq ($(shell uname -s), Darwin)
 		LLVM_PREFIX=$(shell brew --prefix llvm)
 		CMAKE_FLAGS += -DCMAKE_CXX_COMPILER=$(LLVM_PREFIX)/bin/clang++
 	endif
+	ifdef CC_PRECOMPILER_CURRENT_TARGET
+		CROSS_ARCH := $(firstword $(subst -, ,$(CC_PRECOMPILER_CURRENT_TARGET)))
+		ifeq ($(CROSS_ARCH), aarch64)
+			CMAKE_FLAGS += -DCMAKE_OSX_ARCHITECTURES=arm64
+		else
+			CMAKE_FLAGS += -DCMAKE_OSX_ARCHITECTURES=$(CROSS_ARCH) -DUSE_OPENMP=OFF
+		endif
+	endif
 else
 	LIBXGBOOST = libxgboost.so
 	LDFLAGS += -Wl,-rpath,'$$ORIGIN/lib'
