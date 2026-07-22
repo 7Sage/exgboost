@@ -70,6 +70,7 @@ defmodule ParameterTest do
     end
   end
 
+  @tag :gpu
   test "linear booster", context do
     num_class = 10
     nrows = :rand.uniform(10)
