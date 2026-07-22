@@ -1,8 +1,10 @@
 name: precompile
 
 on:
-  - push
-  - workflow_dispatch
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
   linux:
@@ -47,11 +49,11 @@ jobs:
           export ELIXIR_MAKE_CACHE_DIR=$(pwd)/cache
           mkdir -p "${ELIXIR_MAKE_CACHE_DIR}"
           mix elixir_make.precompile
-      - uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
-          files: |
-            cache/*.tar.gz
+          name: nifs-linux-otp${{matrix.otp}}
+          path: cache/*.tar.gz
 
   macos:
     runs-on: macos-15
@@ -78,8 +80,58 @@ jobs:
           export ELIXIR_MAKE_CACHE_DIR=$(pwd)/cache
           mkdir -p "${ELIXIR_MAKE_CACHE_DIR}"
           mix elixir_make.precompile
-      - uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
-          files: |
-            ${{ 'cache/*aarch64*.tar.gz' }}
+          name: nifs-macos
+          path: cache/*aarch64*.tar.gz
+
+  release:
+    needs: [linux, macos]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download all NIF artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: cache
+          merge-multiple: true
+
+      - name: Generate checksum.exs
+        run: |
+          {
+            echo "%{"
+            for f in $(ls cache/*.tar.gz | sort); do
+              sha=$(sha256sum "$f" | awk '{print $1}')
+              fname=$(basename "$f")
+              echo "  \"$fname\" => \"sha256:$sha\","
+            done
+            echo "}"
+          } > checksum.exs
+          cat checksum.exs
+
+      - name: Commit checksum.exs and move tag
+        run: |
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          git add checksum.exs
+          if git diff --staged --quiet; then
+            echo "checksum.exs unchanged, skipping"
+          else
+            git commit -m "Add checksum.exs for ${{ github.ref_name }}"
+            git tag -f ${{ github.ref_name }}
+            git push --force origin ${{ github.ref_name }}
+            git push origin HEAD:main || true
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: cache/*.tar.gz
