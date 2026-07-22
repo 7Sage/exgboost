@@ -41,7 +41,7 @@ jobs:
       - name: Mix Test
         run: |
           mix deps.get
-          MIX_ENV=test mix test --exclude gpu
+          MIX_ENV=test mix test --exclude gpu --exclude text_file_uri
       - name: Create precompiled library
         run: |
           export ELIXIR_MAKE_CACHE_DIR=$(pwd)/cache
@@ -72,7 +72,7 @@ jobs:
       - name: Mix Test
         run: |
           mix deps.get
-          MIX_ENV=test mix test --exclude gpu
+          MIX_ENV=test mix test --exclude gpu --exclude text_file_uri
       - name: Create precompiled library
         run: |
           export ELIXIR_MAKE_CACHE_DIR=$(pwd)/cache

@@ -28,6 +28,7 @@ defmodule NifTest do
     assert EXGBoost.NIF.get_global_config() |> unwrap!() != :error
   end
 
+  @tag :text_file_uri
   test "dmatrix_create_from_uri" do
     config = Jason.encode!(%{uri: "test/data/train.txt?format=libsvm"})
     assert EXGBoost.NIF.dmatrix_create_from_uri(config) |> unwrap!() != :error

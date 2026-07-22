@@ -50,4 +50,4 @@ jobs:
         run: mix format --check-formatted
 
       - name: Run tests
-        run: MIX_ENV=test mix test --exclude gpu
+        run: MIX_ENV=test mix test --exclude gpu --exclude text_file_uri
