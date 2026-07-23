@@ -43,9 +43,28 @@ C_SRCS = $(wildcard $(EXGBOOST_DIR)/src/*.c) $(wildcard $(EXGBOOST_DIR)/include/
 LDFLAGS = -L$(EXGBOOST_CACHE_LIB_DIR) -lxgboost
 
 ifeq ($(shell uname -s), Darwin)
-	POST_INSTALL = install_name_tool $(EXGBOOST_CACHE_SO) -change @rpath/libxgboost.dylib @loader_path/lib/libxgboost.dylib
+	LIBOMP_PREFIX := $(shell brew --prefix libomp 2>/dev/null)
+	LIBOMP_DYLIB := $(LIBOMP_PREFIX)/lib/libomp.dylib
+	# Homebrew ships libomp.dylib as mode 444; rm before cp so rebuilds
+	# (mix test then precompile) can overwrite the bundled copy.
+	POST_INSTALL = install_name_tool -change @rpath/libxgboost.dylib @loader_path/lib/libxgboost.dylib $(EXGBOOST_CACHE_SO) && \
+		chmod -R u+w $(EXGBOOST_CACHE_LIB_DIR) && \
+		if [ -f $(LIBOMP_DYLIB) ] && otool -L $(EXGBOOST_CACHE_LIB_DIR)/$(LIBXGBOOST) | grep -q libomp; then \
+			rm -f $(EXGBOOST_CACHE_LIB_DIR)/libomp.dylib && \
+			cp $(LIBOMP_DYLIB) $(EXGBOOST_CACHE_LIB_DIR)/libomp.dylib && \
+			chmod u+w $(EXGBOOST_CACHE_LIB_DIR)/libomp.dylib && \
+			install_name_tool -change @rpath/libomp.dylib @loader_path/libomp.dylib $(EXGBOOST_CACHE_LIB_DIR)/$(LIBXGBOOST); \
+		fi
 	LDFLAGS += -flat_namespace -undefined suppress
 	LIBXGBOOST = libxgboost.dylib
+	# Apple Clang needs explicit Homebrew libomp paths for FindOpenMP.
+	ifneq ($(LIBOMP_PREFIX),)
+		CMAKE_FLAGS += -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I$(LIBOMP_PREFIX)/include" \
+			-DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I$(LIBOMP_PREFIX)/include" \
+			-DOpenMP_C_LIB_NAMES=omp \
+			-DOpenMP_CXX_LIB_NAMES=omp \
+			-DOpenMP_omp_LIBRARY=$(LIBOMP_DYLIB)
+	endif
 	ifeq ($(USE_LLVM_BREW), true)
 		LLVM_PREFIX=$(shell brew --prefix llvm)
 		CMAKE_FLAGS += -DCMAKE_CXX_COMPILER=$(LLVM_PREFIX)/bin/clang++
@@ -62,7 +81,16 @@ else
 	LIBXGBOOST = libxgboost.so
 	LDFLAGS += -Wl,-rpath,'$$ORIGIN/lib'
 	LDFLAGS += -Wl,--allow-multiple-definition
-	POST_INSTALL = $(NOOP)
+	POST_INSTALL = \
+		libgomp=$$($(CC) -print-file-name=libgomp.so.1 2>/dev/null); \
+		if echo "$$libgomp" | grep -q '^/'; then \
+			command -v patchelf >/dev/null || { echo "patchelf is required to bundle libgomp" >&2; exit 1; }; \
+			cp -L "$$libgomp" $(EXGBOOST_CACHE_LIB_DIR)/libgomp.so.1 && \
+			patchelf --add-rpath '$$ORIGIN' $(EXGBOOST_CACHE_LIB_DIR)/$(LIBXGBOOST); \
+		elif readelf -d $(EXGBOOST_CACHE_LIB_DIR)/$(LIBXGBOOST) 2>/dev/null | grep -q libgomp; then \
+			echo "libxgboost links libgomp but $(CC) -print-file-name=libgomp.so.1 failed" >&2; \
+			exit 1; \
+		fi
 	ifdef CC_PRECOMPILER_CURRENT_TARGET
 		CROSS_ARCH := $(firstword $(subst -, ,$(CC_PRECOMPILER_CURRENT_TARGET)))
 		CMAKE_FLAGS += -DCMAKE_C_COMPILER=$(CC) -DCMAKE_CXX_COMPILER=$(CXX)
@@ -77,7 +105,9 @@ $(EXGBOOST_SO): $(EXGBOOST_CACHE_SO)
 
 $(EXGBOOST_CACHE_SO): $(XGBOOST_LIB_DIR_FLAG) $(C_SRCS)
 	@mkdir -p cache
+	rm -rf $(EXGBOOST_CACHE_LIB_DIR)
 	cp -R $(XGBOOST_LIB_DIR) $(EXGBOOST_CACHE_LIB_DIR)
+	chmod -R u+w $(EXGBOOST_CACHE_LIB_DIR)
 	cp $(XGBOOST_DIR)/lib/$(LIBXGBOOST) $(EXGBOOST_CACHE_LIB_DIR)
 	$(CC) $(CFLAGS) $(wildcard $(EXGBOOST_DIR)/src/*.c) $(LDFLAGS) -o $(EXGBOOST_CACHE_SO)
 	$(POST_INSTALL)
